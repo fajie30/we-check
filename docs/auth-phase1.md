@@ -162,3 +162,23 @@ Roles are rows in `public.roles`, not hardcoded checks. Migration: `supabase/mig
   `admin_set_user_role`, `admin_list_users`; plus `my_modules()` for the signed-in user.
 - Follow-up: drop the old `admin_list_instructors()` once the new app version is live everywhere.
 - Verification: `node scripts/verify/verify-dynamic-roles.cjs` (63 checks). All four suites: 48 + 27 + 39 + 63.
+
+## 11. User management: add, edit, deactivate (admin)
+
+Users page (`/admin/teachers`). Migration: `supabase/migrations/20261105040000_user_management.sql`.
+
+- **Add user**: name, email, role. Creates an already-approved account and shows a one-time **invite link** to send to
+  the person (no email service needed). The link opens `/auth/confirm`, which verifies the token on the server and
+  sends them to `/set-password` to choose their own password. The email counts as verified once the link is used.
+  Existing emails are refused up front (Supabase silently re-invites unaccepted addresses).
+- **Edit**: name and email. An email change is immediate and counts as verified; a trigger mirrors it into `profiles.email`.
+- **Deactivate / reactivate**: reversible, deletes nothing. Blocks sign-in at the Auth level (ban) and the app also checks
+  `profiles.deactivated_at` on every request (defence in depth): such a user has no permissions and sees `/deactivated`.
+- **Password link**: one-time recovery link for an existing, active user.
+- The admin account cannot be edited, deactivated, or given a link, and a user cannot be created as admin.
+- **Service-role key**: used in exactly one server-only module, `src/lib/supabase/admin.ts`, only for Auth operations
+  (invite, change email, ban/unban) and only after `requireAdmin()` + `requirePermission('teacher_approvals')`.
+  All profile changes go through admin-checked database functions with the admin's own session.
+  `SUPABASE_SERVICE_ROLE_KEY` must be set (server-only) in Vercel.
+- Audit: `user_audit_log` (create, edit, deactivate, reactivate, reset_link).
+- Verification: `node scripts/verify/verify-users.cjs` (54 checks).

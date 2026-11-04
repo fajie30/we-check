@@ -13,6 +13,7 @@ export type Profile = {
   role_label: string;
   approval_status: "pending_approval" | "approved" | "rejected";
   rejection_reason: string | null;
+  deactivated_at: string | null;
 };
 
 /**
@@ -29,6 +30,7 @@ export type AccessState =
   | { kind: "unverified"; email: string }
   | { kind: "pending"; profile: Profile }
   | { kind: "rejected"; profile: Profile }
+  | { kind: "deactivated"; profile: Profile }
   | { kind: "member"; profile: Profile; permissions: string[] }
   | { kind: "admin"; profile: Profile; permissions: string[] };
 
@@ -44,6 +46,7 @@ export function deriveState(
   if (!user.email_confirmed_at) return { kind: "unverified", email: user.email ?? "" };
   if (!profile) return { kind: "no_profile" };
   if (profile.role === "admin") return { kind: "admin", profile, permissions };
+  if (profile.deactivated_at) return { kind: "deactivated", profile };
   if (profile.approval_status === "approved") return { kind: "member", profile, permissions };
   if (profile.approval_status === "rejected") return { kind: "rejected", profile };
   return { kind: "pending", profile };
@@ -57,7 +60,7 @@ export async function fetchProfile(
 ): Promise<Profile | null> {
   const { data } = await supabase
     .from("profiles")
-    .select("id, full_name, email, role, approval_status, rejection_reason, roles(label)")
+    .select("id, full_name, email, role, approval_status, rejection_reason, deactivated_at, roles(label)")
     .eq("id", userId)
     .single();
   if (!data) return null;
@@ -72,6 +75,7 @@ export async function fetchProfile(
     role_label: label ?? data.role,
     approval_status: data.approval_status,
     rejection_reason: data.rejection_reason,
+    deactivated_at: data.deactivated_at,
   };
 }
 
@@ -87,7 +91,11 @@ export async function resolveState(
   // Effective permissions come from the database (my_permissions); pending and
   // rejected users get none.
   let permissions: string[] = [];
-  if (profile && (profile.role === "admin" || profile.approval_status === "approved")) {
+  if (
+    profile &&
+    !profile.deactivated_at &&
+    (profile.role === "admin" || profile.approval_status === "approved")
+  ) {
     const { data } = await supabase.rpc("my_permissions");
     permissions = Array.isArray(data) ? (data as string[]) : [];
   }
@@ -121,6 +129,8 @@ export function destinationFor(state: AccessState): string {
       return "/pending-approval";
     case "rejected":
       return "/rejected";
+    case "deactivated":
+      return "/deactivated";
     case "member":
       return state.permissions.includes("instructor_dashboard") ? "/instructor" : "/home";
     case "admin":
@@ -159,10 +169,13 @@ export const requireAdmin = () => requireKind("admin");
 export const requireMember = () => requireKind("member");
 export const requirePending = () => requireKind("pending");
 export const requireRejected = () => requireKind("rejected");
+export const requireDeactivated = () => requireKind("deactivated");
 export const requireUnverified = () => requireKind("unverified");
 
 /** For /login and /register: signed-in users are sent to their destination. */
 export async function redirectIfSignedIn() {
   const state = await getAccessState();
-  if (state.kind !== "anon") redirect(destinationFor(state));
+  // "no_profile" maps to /login, so redirecting it from /login would loop forever
+  // (for example if the database is unreachable or out of date). Show the form instead.
+  if (state.kind !== "anon" && state.kind !== "no_profile") redirect(destinationFor(state));
 }

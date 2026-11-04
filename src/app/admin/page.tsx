@@ -42,11 +42,12 @@ async function Counts() {
     { label: "Pending", value: counts.pending, href: "/admin/teachers?status=pending", note: "Waiting for your decision" },
     { label: "Approved", value: counts.approved, href: "/admin/teachers?status=approved", note: "Can use WeCheck" },
     { label: "Rejected", value: counts.rejected, href: "/admin/teachers?status=rejected", note: "Access denied" },
+    { label: "Deactivated", value: counts.deactivated, href: "/admin/teachers?status=deactivated", note: "Sign-in blocked" },
   ];
 
   return (
     <div className="grid gap-4">
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {items.map((item) => (
           <Link key={item.label} href={item.href} className="block focus-visible:outline-2">
             <Card className="h-full transition-colors hover:bg-muted/50">

@@ -40,6 +40,13 @@ export const loginSchema = z.object({
   password: z.string().min(1, "Enter your password").max(72, "Password is too long"),
 });
 
+export const setPasswordSchema = z
+  .object({ password: newPasswordSchema, confirmPassword: z.string() })
+  .refine((v) => v.password === v.confirmPassword, {
+    path: ["confirmPassword"],
+    message: "Passwords do not match",
+  });
+
 export const resendSchema = z.object({ email: emailSchema });
 
 export type FormState = {

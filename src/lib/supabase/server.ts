@@ -1,6 +1,7 @@
 import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { connection } from "next/server";
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "./env";
 
 /**
@@ -8,6 +9,10 @@ import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "./env";
  * Runs as the signed-in user, so RLS applies.
  */
 export async function createClient() {
+  // Supabase compares token expiry to the current time, which Next flags as an
+  // "unstable value" if it runs while prerendering. connection() defers every
+  // server-side Supabase call to request time, so no caller can forget it.
+  await connection();
   const cookieStore = await cookies();
 
   return createServerClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {

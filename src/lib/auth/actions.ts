@@ -4,7 +4,13 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { destinationFor, resolveState } from "./access";
-import { loginSchema, registerSchema, resendSchema, type FormState } from "./schemas";
+import {
+  loginSchema,
+  registerSchema,
+  resendSchema,
+  setPasswordSchema,
+  type FormState,
+} from "./schemas";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 const CALLBACK_URL = `${SITE_URL}/auth/callback`;
@@ -73,6 +79,9 @@ export async function login(_prev: FormState, formData: FormData): Promise<FormS
         message: "Please verify your email before signing in.",
       };
     }
+    if (error?.code === "user_banned") {
+      return { status: "error", message: "This account has been deactivated. Contact your administrator." };
+    }
     return { status: "error", message: "Invalid email or password" };
   }
 
@@ -110,4 +119,31 @@ export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut(); // clears the session cookies
   redirect("/login");
+}
+
+/** Invited users (and password-reset links) land here with a session but no password yet. */
+export async function setPassword(_prev: FormState, formData: FormData): Promise<FormState> {
+  const parsed = setPasswordSchema.safeParse({
+    password: text(formData, "password"),
+    confirmPassword: text(formData, "confirmPassword"),
+  });
+  if (!parsed.success) {
+    return { status: "error", fieldErrors: z.flattenError(parsed.error).fieldErrors };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
+  if (error) {
+    if (error.code === "weak_password") {
+      return { status: "error", fieldErrors: { password: ["Choose a stronger password"] } };
+    }
+    return { status: "error", message: "We couldn't save your password. Please try again." };
+  }
+
+  redirect(destinationFor(await resolveState(supabase, user)));
 }

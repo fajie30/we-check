@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { SearchIcon } from "lucide-react";
+import { BanIcon, SearchIcon } from "lucide-react";
+import { AddUserDialog } from "@/components/admin/add-user-dialog";
+import { UserManage } from "@/components/admin/user-manage";
+import { Badge } from "@/components/ui/badge";
 import { StatusBadge, VerifiedIndicator } from "@/components/admin/status-badge";
 import { TeacherActions } from "@/components/admin/teacher-actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -28,10 +31,11 @@ const FILTERS = [
   { key: "pending", label: "Pending" },
   { key: "approved", label: "Approved" },
   { key: "rejected", label: "Rejected" },
+  { key: "deactivated", label: "Deactivated" },
 ] as const;
 type FilterKey = (typeof FILTERS)[number]["key"];
 
-const STATUS_BY_FILTER: Record<Exclude<FilterKey, "all">, Teacher["approval_status"]> = {
+const STATUS_BY_FILTER: Record<"pending" | "approved" | "rejected", Teacher["approval_status"]> = {
   pending: "pending_approval",
   approved: "approved",
   rejected: "rejected",
@@ -92,7 +96,10 @@ async function TeacherList({
   const needle = q.toLowerCase();
   const rows = all.filter(
     (t) =>
-      (filter === "all" || t.approval_status === STATUS_BY_FILTER[filter]) &&
+      (filter === "all" ||
+        (filter === "deactivated"
+          ? Boolean(t.deactivated_at)
+          : !t.deactivated_at && t.approval_status === STATUS_BY_FILTER[filter])) &&
       (!needle || t.full_name.toLowerCase().includes(needle) || t.email.toLowerCase().includes(needle)),
   );
 
@@ -106,6 +113,9 @@ async function TeacherList({
 
   return (
     <div className="grid gap-5">
+      <div className="flex justify-end">
+        <AddUserDialog roles={assignable} />
+      </div>
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <nav aria-label="Filter by status" className="flex flex-wrap gap-2">
           {FILTERS.map(({ key, label }) => (
@@ -193,7 +203,7 @@ async function TeacherList({
                         <p className="font-medium">{t.full_name}</p>
                         <p className="text-sm break-all text-muted-foreground">{t.email}</p>
                       </div>
-                      <StatusBadge status={t.approval_status} />
+                      <StatusPill teacher={t} />
                     </div>
                     <VerifiedIndicator verified={t.email_verified} />
                     <UserRoleSelect userId={t.id} fullName={t.full_name} role={t.role} roles={assignable} />
@@ -218,7 +228,7 @@ async function TeacherList({
 function StatusCell({ teacher }: { teacher: Teacher }) {
   return (
     <div className="grid gap-1">
-      <StatusBadge status={teacher.approval_status} />
+      <StatusPill teacher={teacher} />
       {teacher.rejection_reason ? (
         <span className="text-xs text-muted-foreground">Reason: {teacher.rejection_reason}</span>
       ) : null}
@@ -226,21 +236,42 @@ function StatusCell({ teacher }: { teacher: Teacher }) {
   );
 }
 
-function RowActions({ teacher }: { teacher: Teacher }) {
-  if (teacher.approval_status !== "pending_approval") {
-    return teacher.reviewed_at ? (
-      <span className="text-xs text-muted-foreground">
-        Decided {formatDate(teacher.reviewed_at)}
-      </span>
-    ) : null;
+function StatusPill({ teacher }: { teacher: Teacher }) {
+  if (teacher.deactivated_at) {
+    return (
+      <Badge variant="destructive">
+        <BanIcon aria-hidden />
+        Deactivated
+      </Badge>
+    );
   }
+  return <StatusBadge status={teacher.approval_status} />;
+}
+
+function RowActions({ teacher }: { teacher: Teacher }) {
+  const decided =
+    teacher.approval_status !== "pending_approval" && teacher.reviewed_at ? (
+      <span className="text-xs text-muted-foreground">Decided {formatDate(teacher.reviewed_at)}</span>
+    ) : null;
   return (
-    <TeacherActions
-      id={teacher.id}
-      fullName={teacher.full_name}
-      email={teacher.email}
-      emailVerified={teacher.email_verified}
-    />
+    <div className="grid gap-2">
+      {teacher.approval_status === "pending_approval" && !teacher.deactivated_at ? (
+        <TeacherActions
+          id={teacher.id}
+          fullName={teacher.full_name}
+          email={teacher.email}
+          emailVerified={teacher.email_verified}
+        />
+      ) : (
+        decided
+      )}
+      <UserManage
+        id={teacher.id}
+        fullName={teacher.full_name}
+        email={teacher.email}
+        active={!teacher.deactivated_at}
+      />
+    </div>
   );
 }
 
