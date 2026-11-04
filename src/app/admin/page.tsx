@@ -60,9 +60,9 @@ async function Counts() {
         ))}
       </div>
       <p className="text-sm text-muted-foreground">
-        {counts.total} teacher{counts.total === 1 ? "" : "s"} registered in total.{" "}
+        {counts.total} user{counts.total === 1 ? "" : "s"} registered in total.{" "}
         <Link href="/admin/teachers" className="text-foreground underline underline-offset-4">
-          Manage teachers
+          Manage users
         </Link>
       </p>
     </div>

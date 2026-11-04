@@ -25,6 +25,7 @@ const check = (name, pass, detail = "") => {
 const tag = crypto.randomBytes(3).toString("hex");
 const started = new Date().toISOString();
 const users = {};
+let snapshot = null;
 async function mk(name, status) {
   const password = crypto.randomBytes(12).toString("base64url") + "aA1";
   const email = `verify-${name}-${tag}@wecheck-verify.invalid`;
@@ -77,6 +78,10 @@ const granted = async (role, key) =>
 
 (async () => {
   try {
+    // Snapshot the real Teacher grants, then run from a known baseline (restored in finally).
+    snapshot = (await admin.from("role_permissions").select("role,permission_key").eq("role", "instructor")).data;
+    await admin.from("role_permissions").delete().eq("role", "instructor");
+    await admin.from("role_permissions").insert({ role: "instructor", permission_key: "instructor_dashboard" });
     await mk("pend"); await mk("appr", "approved"); await mk("rej", "rejected");
 
     console.log("== Database: effective permissions ==");
@@ -125,9 +130,9 @@ const granted = async (role, key) =>
     check("admin revokes Teacher -> Instructor dashboard", r.ok === true && !(await granted("instructor", "instructor_dashboard")));
     check("  ...teacher permissions now empty", JSON.stringify(await mp(A)) === "[]");
     const nd = await page("/instructor", A.cookie);
-    check("  ...teacher /instructor -> /no-access", nd.dest === "/no-access", `-> ${nd.dest}`);
-    const na = await page("/no-access", A.cookie);
-    check("  ...teacher sees the no-access page", na.body.includes("No modules available") && !na.dest);
+    check("  ...teacher /instructor -> /home", nd.dest === "/home", `-> ${nd.dest}`);
+    const na = await page("/home", A.cookie);
+    check("  ...teacher sees /home with the empty-modules message", na.body.includes("any module yet") && !na.dest);
     const pd = await page("/instructor", P.cookie);
     check("  ...pending teacher still -> /pending-approval", pd.dest === "/pending-approval");
 
@@ -135,8 +140,8 @@ const granted = async (role, key) =>
     check("admin restores Teacher -> Instructor dashboard", r.ok === true && (await granted("instructor", "instructor_dashboard")));
     const back = await page("/instructor", A.cookie);
     check("  ...teacher sees dashboard again", back.body.includes("Instructor dashboard") && !back.dest);
-    const na2 = await page("/no-access", A.cookie);
-    check("  ...and /no-access sends them back to /instructor", na2.dest === "/instructor", `-> ${na2.dest}`);
+    const na2 = await page("/", A.cookie);
+    check("  ...and the home redirect sends them to /instructor again", na2.dest === "/instructor", `-> ${na2.dest}`);
 
     r = await setPerm(adminCookie, { role: "instructor", key: "courses", granted: true });
     check("admin grants a placeholder module (Courses) to Teacher", r.ok === true && (await mp(A)).includes("courses"));
@@ -171,9 +176,11 @@ const granted = async (role, key) =>
     console.log("HARNESS ERROR:", e.message);
     results.push(false);
   } finally {
-    console.log("\n== Cleanup: restore default matrix ==");
-    await admin.from("role_permissions").delete().eq("role", "instructor").neq("permission_key", "instructor_dashboard");
-    await admin.from("role_permissions").upsert({ role: "instructor", permission_key: "instructor_dashboard" });
+    console.log("\n== Cleanup: restore the original Teacher grants ==");
+    if (snapshot) {
+      await admin.from("role_permissions").delete().eq("role", "instructor");
+      if (snapshot.length) await admin.from("role_permissions").insert(snapshot);
+    }
     await admin.from("role_permission_changes").delete().gte("changed_at", started);
     for (const u of Object.values(users)) await admin.auth.admin.deleteUser(u.id);
     const { data: rp } = await admin.from("role_permissions").select("role,permission_key").order("role").order("permission_key");

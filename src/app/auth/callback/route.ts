@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { deriveState, destinationFor, fetchProfile } from "@/lib/auth/access";
+import { destinationFor, resolveState } from "@/lib/auth/access";
 import { safeNextPath } from "@/lib/auth/redirects";
 
 // Email-confirmation link target. Exchanges the one-time code for a session.
@@ -22,8 +22,7 @@ export async function GET(request: NextRequest) {
   } = await supabase.auth.getUser();
   if (!user) return failure;
 
-  const profile = user.email_confirmed_at ? await fetchProfile(supabase, user.id) : null;
-  const destination = destinationFor(deriveState(user, profile));
+  const destination = destinationFor(await resolveState(supabase, user));
 
   // `next` is honoured only if it is on the internal allowlist AND the user's
   // own state already points there (so it can never widen access).

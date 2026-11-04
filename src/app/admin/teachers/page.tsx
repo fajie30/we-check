@@ -16,10 +16,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { UserRoleSelect } from "@/components/admin/user-role-select";
+import { getAssignableRoles } from "@/lib/admin/roles";
 import { countTeachers, getTeachers, type Teacher } from "@/lib/admin/teachers";
 import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Teachers | Admin | WeCheck" };
+export const metadata: Metadata = { title: "Users | Admin | WeCheck" };
 
 const FILTERS = [
   { key: "all", label: "All" },
@@ -43,7 +45,7 @@ const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v
 export default function TeachersPage({ searchParams }: PageProps<"/admin/teachers">) {
   return (
     <div className="grid gap-6">
-      <h1 className="text-xl font-semibold">Teachers</h1>
+      <h1 className="text-xl font-semibold">Users</h1>
       <Suspense fallback={<ListSkeleton />}>
         <TeacherList searchParams={searchParams} />
       </Suspense>
@@ -72,7 +74,7 @@ async function TeacherList({
   const filter: FilterKey = FILTERS.some((f) => f.key === rawStatus) ? (rawStatus as FilterKey) : "all";
   const q = (first(sp.q) ?? "").trim().slice(0, 100);
 
-  const result = await getTeachers();
+  const [result, assignable] = await Promise.all([getTeachers(), getAssignableRoles()]);
   if ("error" in result) {
     return (
       <Alert variant="destructive" role="alert">
@@ -149,6 +151,7 @@ async function TeacherList({
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Registered</TableHead>
+                  <TableHead>Role</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
@@ -164,6 +167,9 @@ async function TeacherList({
                       </div>
                     </TableCell>
                     <TableCell>{formatDate(t.created_at)}</TableCell>
+                    <TableCell>
+                      <UserRoleSelect userId={t.id} fullName={t.full_name} role={t.role} roles={assignable} />
+                    </TableCell>
                     <TableCell>
                       <StatusCell teacher={t} />
                     </TableCell>
@@ -190,6 +196,7 @@ async function TeacherList({
                       <StatusBadge status={t.approval_status} />
                     </div>
                     <VerifiedIndicator verified={t.email_verified} />
+                    <UserRoleSelect userId={t.id} fullName={t.full_name} role={t.role} roles={assignable} />
                     <p className="text-xs text-muted-foreground">
                       Registered {formatDate(t.created_at)}
                     </p>
@@ -241,7 +248,7 @@ function EmptyState({ hasAny, filtered }: { hasAny: boolean; filtered: boolean }
   return (
     <div className="grid gap-2 border border-dashed border-border p-10 text-center">
       <p className="font-medium">
-        {!hasAny ? "No teachers have registered yet" : "No teachers match"}
+        {!hasAny ? "No users have registered yet" : "No users match"}
       </p>
       <p className="text-sm text-muted-foreground">
         {!hasAny

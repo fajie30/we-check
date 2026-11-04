@@ -12,7 +12,7 @@ export default function RolesPage() {
       <div className="grid gap-1">
         <h1 className="text-xl font-semibold">Roles</h1>
         <p className="text-sm text-muted-foreground">
-          Choose which modules each role can use. Changes apply the next time a user loads a page.
+          Create roles and choose which modules each can use. Changes apply the next time a user loads a page.
         </p>
       </div>
       <Suspense
@@ -39,5 +39,5 @@ async function Matrix() {
       </Alert>
     );
   }
-  return <RoleMatrix permissions={result.permissions} grants={result.grants} />;
+  return <RoleMatrix roles={result.roles} permissions={result.permissions} grants={result.grants} />;
 }

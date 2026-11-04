@@ -74,12 +74,12 @@ export function TeacherActions({ id, fullName, email, emailVerified }: Props) {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {mode === "approve" ? "Approve this teacher?" : "Reject this teacher?"}
+              {mode === "approve" ? "Approve this user?" : "Reject this user?"}
             </DialogTitle>
             <DialogDescription>
               <strong className="text-foreground">{fullName}</strong> ({email}){" "}
               {mode === "approve"
-                ? "will get access to the instructor dashboard."
+                ? "will get access to WeCheck."
                 : "will be denied access to WeCheck."}
             </DialogDescription>
           </DialogHeader>
@@ -92,7 +92,7 @@ export function TeacherActions({ id, fullName, email, emailVerified }: Props) {
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 maxLength={500}
-                placeholder="Shown to the teacher on their account page."
+                placeholder="Shown to the user on their account page."
               />
               <p className="text-right text-xs text-muted-foreground">{reason.length}/500</p>
             </div>

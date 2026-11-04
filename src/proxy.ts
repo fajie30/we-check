@@ -6,7 +6,7 @@ import { updateSession } from "@/lib/supabase/proxy";
 // src/lib/auth/access.ts.
 // /verify-email is public on purpose: unverified users cannot sign in, so they
 // have no session when they land there.
-const PROTECTED_PREFIXES = ["/admin", "/instructor", "/pending-approval", "/rejected", "/no-access"];
+const PROTECTED_PREFIXES = ["/admin", "/instructor", "/pending-approval", "/rejected", "/home"];
 
 export async function proxy(request: NextRequest) {
   const { response, user } = await updateSession(request);

@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { deriveState, destinationFor, fetchProfile } from "./access";
+import { destinationFor, resolveState } from "./access";
 import { loginSchema, registerSchema, resendSchema, type FormState } from "./schemas";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
@@ -76,8 +76,7 @@ export async function login(_prev: FormState, formData: FormData): Promise<FormS
     return { status: "error", message: "Invalid email or password" };
   }
 
-  const profile = await fetchProfile(supabase, data.user.id);
-  redirect(destinationFor(deriveState(data.user, profile)));
+  redirect(destinationFor(await resolveState(supabase, data.user)));
 }
 
 export async function resendVerification(_prev: FormState, formData: FormData): Promise<FormState> {

@@ -6,6 +6,8 @@ export type Teacher = {
   id: string;
   full_name: string;
   email: string;
+  role: string;
+  role_label: string;
   approval_status: "pending_approval" | "approved" | "rejected";
   rejection_reason: string | null;
   created_at: string;
@@ -29,7 +31,7 @@ export function countTeachers(teachers: Teacher[]): TeacherCounts {
 export async function getTeachers(): Promise<{ teachers: Teacher[] } | { error: true }> {
   await requireAdmin();
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("admin_list_instructors");
+  const { data, error } = await supabase.rpc("admin_list_users");
   if (error || !data) return { error: true };
   return { teachers: data as Teacher[] };
 }

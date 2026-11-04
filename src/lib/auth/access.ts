@@ -9,7 +9,8 @@ export type Profile = {
   id: string;
   full_name: string;
   email: string;
-  role: "admin" | "instructor";
+  role: string; // roles.key ("admin", "instructor", or a custom role)
+  role_label: string;
   approval_status: "pending_approval" | "approved" | "rejected";
   rejection_reason: string | null;
 };
@@ -18,6 +19,9 @@ export type Profile = {
  * The single answer to "what is this visitor allowed to see?".
  * Derived server-side from getUser() (server-verified) plus the profile read
  * under RLS. Client-sent role/status is never trusted.
+ *
+ * "member" = an approved, verified user whose role is not admin (Teacher, Head,
+ * any custom role). What a member can open is decided by `permissions`.
  */
 export type AccessState =
   | { kind: "anon" }
@@ -25,7 +29,7 @@ export type AccessState =
   | { kind: "unverified"; email: string }
   | { kind: "pending"; profile: Profile }
   | { kind: "rejected"; profile: Profile }
-  | { kind: "instructor"; profile: Profile; permissions: string[] } // approved + verified
+  | { kind: "member"; profile: Profile; permissions: string[] }
   | { kind: "admin"; profile: Profile; permissions: string[] };
 
 type Kind = AccessState["kind"];
@@ -40,7 +44,7 @@ export function deriveState(
   if (!user.email_confirmed_at) return { kind: "unverified", email: user.email ?? "" };
   if (!profile) return { kind: "no_profile" };
   if (profile.role === "admin") return { kind: "admin", profile, permissions };
-  if (profile.approval_status === "approved") return { kind: "instructor", profile, permissions };
+  if (profile.approval_status === "approved") return { kind: "member", profile, permissions };
   if (profile.approval_status === "rejected") return { kind: "rejected", profile };
   return { kind: "pending", profile };
 }
@@ -53,10 +57,41 @@ export async function fetchProfile(
 ): Promise<Profile | null> {
   const { data } = await supabase
     .from("profiles")
-    .select("id, full_name, email, role, approval_status, rejection_reason")
+    .select("id, full_name, email, role, approval_status, rejection_reason, roles(label)")
     .eq("id", userId)
-    .single<Profile>();
-  return data ?? null;
+    .single();
+  if (!data) return null;
+
+  const embedded = data.roles as { label: string } | { label: string }[] | null;
+  const label = Array.isArray(embedded) ? embedded[0]?.label : embedded?.label;
+  return {
+    id: data.id,
+    full_name: data.full_name,
+    email: data.email,
+    role: data.role,
+    role_label: label ?? data.role,
+    approval_status: data.approval_status,
+    rejection_reason: data.rejection_reason,
+  };
+}
+
+/** Profile + effective permissions for an already-verified auth user. */
+export async function resolveState(
+  supabase: SupabaseServerClient,
+  user: { id: string; email?: string | null; email_confirmed_at?: string | null },
+): Promise<AccessState> {
+  if (!user.email_confirmed_at) return deriveState(user, null);
+
+  const profile = await fetchProfile(supabase, user.id);
+
+  // Effective permissions come from the database (my_permissions); pending and
+  // rejected users get none.
+  let permissions: string[] = [];
+  if (profile && (profile.role === "admin" || profile.approval_status === "approved")) {
+    const { data } = await supabase.rpc("my_permissions");
+    permissions = Array.isArray(data) ? (data as string[]) : [];
+  }
+  return deriveState(user, profile, permissions);
 }
 
 export const getAccessState = cache(async (): Promise<AccessState> => {
@@ -72,16 +107,7 @@ export const getAccessState = cache(async (): Promise<AccessState> => {
   } = await supabase.auth.getUser();
   if (error || !user) return { kind: "anon" };
 
-  const profile = user.email_confirmed_at ? await fetchProfile(supabase, user.id) : null;
-
-  // Effective permissions come from the database (my_permissions); pending and
-  // rejected instructors get none.
-  let permissions: string[] = [];
-  if (profile && (profile.role === "admin" || profile.approval_status === "approved")) {
-    const { data } = await supabase.rpc("my_permissions");
-    permissions = Array.isArray(data) ? (data as string[]) : [];
-  }
-  return deriveState(user, profile, permissions);
+  return resolveState(supabase, user);
 });
 
 export function destinationFor(state: AccessState): string {
@@ -95,8 +121,8 @@ export function destinationFor(state: AccessState): string {
       return "/pending-approval";
     case "rejected":
       return "/rejected";
-    case "instructor":
-      return "/instructor";
+    case "member":
+      return state.permissions.includes("instructor_dashboard") ? "/instructor" : "/home";
     case "admin":
       return "/admin";
   }
@@ -114,23 +140,23 @@ async function requireKind<K extends Kind>(...allowed: K[]) {
 }
 
 /**
- * Requires a signed-in admin/approved instructor whose role holds `key`.
- * Instructors without it go to /no-access; admins fall back to /admin.
+ * Requires a signed-in admin/approved member whose role holds `key`.
+ * Members without it go home; admins fall back to /admin.
  */
 export async function requirePermission(key: PermissionKey) {
   const state = await getAccessState();
-  if (state.kind !== "admin" && state.kind !== "instructor") redirect(destinationFor(state));
+  if (state.kind !== "admin" && state.kind !== "member") redirect(destinationFor(state));
   if (!state.permissions.includes(key)) {
-    if (state.kind === "admin") redirect("/admin");
-    // Teachers: /instructor itself falls through to /no-access when the
-    // dashboard is off, so going there never loops.
-    redirect(key === "instructor_dashboard" ? "/no-access" : "/instructor");
+    // Send them to their own landing page. A member's landing page is /instructor
+    // only if they hold instructor_dashboard, otherwise /home, which never
+    // requires a permission, so this cannot loop.
+    redirect(destinationFor(state));
   }
   return state;
 }
 
 export const requireAdmin = () => requireKind("admin");
-export const requireApprovedInstructor = () => requireKind("instructor");
+export const requireMember = () => requireKind("member");
 export const requirePending = () => requireKind("pending");
 export const requireRejected = () => requireKind("rejected");
 export const requireUnverified = () => requireKind("unverified");

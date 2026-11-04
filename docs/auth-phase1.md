@@ -143,3 +143,22 @@ Admin page `/admin/roles` edits which modules each role may use. Roles stay fixe
 
 Not included: per-user overrides, custom roles, or usage limits/quotas (for example a cap on courses). Those would be
 new tables/columns on top of this matrix.
+
+## 10. Dynamic roles (replaces the "fixed roles" note in section 9)
+
+Roles are rows in `public.roles`, not hardcoded checks. Migration: `supabase/migrations/20261105030000_dynamic_roles.sql`.
+
+- `admin` and `instructor` (shown as "Teacher") are **system roles**: they cannot be deleted, and `admin` cannot be
+  assigned or renamed. Custom roles (for example **Head**) are created at `/admin/roles` ("Add role"), optionally
+  copying another role's modules ("Head = Teacher + more").
+- The admin assigns a role to a person from `/admin/teachers` (the Users list). Assigning a role never changes approval
+  status and can never make an admin. Signup still creates Teachers only.
+- Landing page: `member` = any approved, non-admin user. They land on `/instructor` if their role has the Instructor
+  dashboard, otherwise `/home`, which lists the modules their role may open.
+- System permissions (Teacher approvals, Role management) stay locked to the admin, so no custom role can ever hold them.
+- Deleting a role is refused while anyone still has it; renaming is allowed. Max 20 roles. All changes are logged in
+  `role_audit_log`.
+- Database functions (all admin-only, anon refused): `admin_create_role`, `admin_update_role`, `admin_delete_role`,
+  `admin_set_user_role`, `admin_list_users`; plus `my_modules()` for the signed-in user.
+- Follow-up: drop the old `admin_list_instructors()` once the new app version is live everywhere.
+- Verification: `node scripts/verify/verify-dynamic-roles.cjs` (63 checks). All four suites: 48 + 27 + 39 + 63.
