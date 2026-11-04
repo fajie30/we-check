@@ -3,6 +3,7 @@ import { cache } from "react";
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import type { PermissionKey } from "./permissions";
 
 export type Profile = {
   id: string;
@@ -24,8 +25,8 @@ export type AccessState =
   | { kind: "unverified"; email: string }
   | { kind: "pending"; profile: Profile }
   | { kind: "rejected"; profile: Profile }
-  | { kind: "instructor"; profile: Profile } // approved + verified
-  | { kind: "admin"; profile: Profile };
+  | { kind: "instructor"; profile: Profile; permissions: string[] } // approved + verified
+  | { kind: "admin"; profile: Profile; permissions: string[] };
 
 type Kind = AccessState["kind"];
 
@@ -33,12 +34,13 @@ type Kind = AccessState["kind"];
 export function deriveState(
   user: { email?: string | null; email_confirmed_at?: string | null } | null,
   profile: Profile | null,
+  permissions: string[] = [],
 ): AccessState {
   if (!user) return { kind: "anon" };
   if (!user.email_confirmed_at) return { kind: "unverified", email: user.email ?? "" };
   if (!profile) return { kind: "no_profile" };
-  if (profile.role === "admin") return { kind: "admin", profile };
-  if (profile.approval_status === "approved") return { kind: "instructor", profile };
+  if (profile.role === "admin") return { kind: "admin", profile, permissions };
+  if (profile.approval_status === "approved") return { kind: "instructor", profile, permissions };
   if (profile.approval_status === "rejected") return { kind: "rejected", profile };
   return { kind: "pending", profile };
 }
@@ -71,7 +73,15 @@ export const getAccessState = cache(async (): Promise<AccessState> => {
   if (error || !user) return { kind: "anon" };
 
   const profile = user.email_confirmed_at ? await fetchProfile(supabase, user.id) : null;
-  return deriveState(user, profile);
+
+  // Effective permissions come from the database (my_permissions); pending and
+  // rejected instructors get none.
+  let permissions: string[] = [];
+  if (profile && (profile.role === "admin" || profile.approval_status === "approved")) {
+    const { data } = await supabase.rpc("my_permissions");
+    permissions = Array.isArray(data) ? (data as string[]) : [];
+  }
+  return deriveState(user, profile, permissions);
 });
 
 export function destinationFor(state: AccessState): string {
@@ -101,6 +111,22 @@ async function requireKind<K extends Kind>(...allowed: K[]) {
   const state = await getAccessState();
   if (!(allowed as Kind[]).includes(state.kind)) redirect(destinationFor(state));
   return state as Extract<AccessState, { kind: K }>;
+}
+
+/**
+ * Requires a signed-in admin/approved instructor whose role holds `key`.
+ * Instructors without it go to /no-access; admins fall back to /admin.
+ */
+export async function requirePermission(key: PermissionKey) {
+  const state = await getAccessState();
+  if (state.kind !== "admin" && state.kind !== "instructor") redirect(destinationFor(state));
+  if (!state.permissions.includes(key)) {
+    if (state.kind === "admin") redirect("/admin");
+    // Teachers: /instructor itself falls through to /no-access when the
+    // dashboard is off, so going there never loops.
+    redirect(key === "instructor_dashboard" ? "/no-access" : "/instructor");
+  }
+  return state;
 }
 
 export const requireAdmin = () => requireKind("admin");

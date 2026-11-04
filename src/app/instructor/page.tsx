@@ -4,7 +4,7 @@ import { AuthShell, CardSkeleton } from "@/components/auth/auth-shell";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { requireApprovedInstructor } from "@/lib/auth/access";
+import { requirePermission } from "@/lib/auth/access";
 
 export const metadata: Metadata = { title: "Instructor | WeCheck" };
 
@@ -20,7 +20,7 @@ export default function InstructorPage() {
 
 async function InstructorContent() {
   // Re-checks on the server: session + verified email + instructor + approved.
-  const { profile } = await requireApprovedInstructor();
+  const { profile } = await requirePermission("instructor_dashboard");
   return (
     <Card>
       <CardHeader>

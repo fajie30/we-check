@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboardIcon, LogOutIcon, UsersIcon } from "lucide-react";
+import { LayoutDashboardIcon, LogOutIcon, ShieldCheckIcon, UsersIcon } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -21,6 +21,7 @@ import { signOut } from "@/lib/auth/actions";
 const ITEMS = [
   { href: "/admin", label: "Overview", Icon: LayoutDashboardIcon, exact: true },
   { href: "/admin/teachers", label: "Teachers", Icon: UsersIcon, exact: false },
+  { href: "/admin/roles", label: "Roles", Icon: ShieldCheckIcon, exact: false },
 ];
 
 export function AdminSidebar() {

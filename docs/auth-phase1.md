@@ -121,3 +121,25 @@ Leaked-password protection is off (paid-plan feature).
 - Single admin by design; rotation steps are in `supabase/ADMIN_BOOTSTRAP.md`.
 - Later phases (schools, heads, students, courses) can add roles by relaxing the `profiles.role` check
   and extending `review_instructor`-style functions; the access state machine is in one file.
+
+## 9. Role management (added after Phase 1)
+
+Admin page `/admin/roles` edits which modules each role may use. Roles stay fixed: **Admin** and **Teacher**
+(`instructor` in the database).
+
+- Tables: `permissions` (catalog), `role_permissions` (grants), `role_permission_changes` (audit of edits).
+  Migration: `supabase/migrations/20261105020000_role_permissions.sql`.
+- Modules today: Teacher approvals, Role management, Instructor dashboard, plus placeholders
+  (Courses, Sections, Activities, Grading) that do nothing until built.
+- **System permissions are locked** (`admin_only`): Teacher approvals and Role management are always held
+  by the admin and can never be given to teachers, so the admin cannot be locked out and teachers cannot approve teachers.
+- Only the admin can change the matrix: `admin_set_role_permission()` checks `is_admin()` inside the database,
+  rejects locked or not-applicable cells, and logs each change. Direct writes to the tables are not granted.
+- Effective permissions: `my_permissions()` / `has_permission(key)`. Pending and rejected teachers have none.
+  Use `has_permission('courses')` in future RLS policies.
+- In the app: `requirePermission(key)` (`src/lib/auth/access.ts`). If an approved teacher's dashboard access is
+  switched off they land on `/no-access`; turning it back on restores `/instructor`.
+- Verification: `node scripts/verify/verify-roles.cjs` (39 checks). It temporarily edits the real matrix and restores defaults.
+
+Not included: per-user overrides, custom roles, or usage limits/quotas (for example a cap on courses). Those would be
+new tables/columns on top of this matrix.
