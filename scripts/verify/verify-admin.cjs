@@ -86,7 +86,7 @@ const row = async (id) => (await admin.from("profiles").select("approval_status,
     check("admin /admin renders overview", ov.status === 200 && !ov.dest && /Overview/.test(ov.body), `status=${ov.status}`);
     const tl = await page("/admin/teachers", cookie);
     check("admin /admin/teachers renders list with test teachers", tl.status === 200 && !tl.dest && tl.body.includes(`Verify vp ${tag}`), `status=${tl.status}`);
-    check("unverified teacher shows 'Email not verified' + disabled-approve hint", tl.body.includes("Email not verified") && tl.body.includes("until the email is verified"));
+    check("unverified teacher shows 'Email not verified' and each row has an Actions menu", tl.body.includes("Email not verified") && tl.body.includes("Actions for Verify"));
     const flt = await page("/admin/teachers?status=approved&q=zzzz-no-match", cookie);
     check("filter + search with no match -> empty state", flt.body.includes("No users match"));
     for (const p of ["/instructor", "/pending-approval", "/rejected", "/login"]) {

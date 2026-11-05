@@ -3,10 +3,9 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { BanIcon, SearchIcon } from "lucide-react";
 import { AddUserDialog } from "@/components/admin/add-user-dialog";
-import { UserManage } from "@/components/admin/user-manage";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge, VerifiedIndicator } from "@/components/admin/status-badge";
-import { TeacherActions } from "@/components/admin/teacher-actions";
+import { UserActionsMenu } from "@/components/admin/user-actions-menu";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -254,23 +253,16 @@ function RowActions({ teacher }: { teacher: Teacher }) {
       <span className="text-xs text-muted-foreground">Decided {formatDate(teacher.reviewed_at)}</span>
     ) : null;
   return (
-    <div className="grid gap-2">
-      {teacher.approval_status === "pending_approval" && !teacher.deactivated_at ? (
-        <TeacherActions
-          id={teacher.id}
-          fullName={teacher.full_name}
-          email={teacher.email}
-          emailVerified={teacher.email_verified}
-        />
-      ) : (
-        decided
-      )}
-      <UserManage
+    <div className="flex flex-wrap items-center gap-3">
+      <UserActionsMenu
         id={teacher.id}
         fullName={teacher.full_name}
         email={teacher.email}
+        emailVerified={teacher.email_verified}
         active={!teacher.deactivated_at}
+        awaitingApproval={teacher.approval_status === "pending_approval"}
       />
+      {decided}
     </div>
   );
 }
