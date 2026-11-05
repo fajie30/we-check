@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { reviewTeacher } from "@/app/admin/actions";
+import { reviewTeacher } from "@/app/(app)/admin/actions";
 
 type Props = { id: string; fullName: string; email: string; emailVerified: boolean };
 

@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { NativeSelect } from "@/components/ui/native-select";
-import { setUserRole } from "@/app/admin/roles/actions";
+import { setUserRole } from "@/app/(app)/admin/roles/actions";
 
 type Props = {
   userId: string;

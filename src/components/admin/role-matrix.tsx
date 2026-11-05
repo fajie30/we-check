@@ -26,7 +26,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { createRole, deleteRole, setRolePermission, updateRole } from "@/app/admin/roles/actions";
+import { createRole, deleteRole, setRolePermission, updateRole } from "@/app/(app)/admin/roles/actions";
 import type { PermissionRow, RoleRow } from "@/lib/admin/roles";
 import type { PermissionKey } from "@/lib/auth/permissions";
 

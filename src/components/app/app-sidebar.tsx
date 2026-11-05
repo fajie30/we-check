@@ -2,7 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboardIcon, LogOutIcon, ShieldCheckIcon, UsersIcon } from "lucide-react";
+import {
+  BookOpenIcon,
+  GraduationCapIcon,
+  HouseIcon,
+  LayoutDashboardIcon,
+  LogOutIcon,
+  ShieldCheckIcon,
+  UsersIcon,
+  type LucideIcon,
+} from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -18,13 +27,22 @@ import {
 } from "@/components/ui/sidebar";
 import { signOut } from "@/lib/auth/actions";
 
-const ITEMS = [
-  { href: "/admin", label: "Overview", Icon: LayoutDashboardIcon, exact: true },
-  { href: "/admin/teachers", label: "Users", Icon: UsersIcon, exact: false },
-  { href: "/admin/roles", label: "Roles", Icon: ShieldCheckIcon, exact: false },
-];
+export type NavIcon = "overview" | "users" | "courses" | "roles" | "home" | "dashboard";
+export type NavItem = { href: string; label: string; icon: NavIcon; exact?: boolean };
 
-export function AdminSidebar() {
+// Icons are passed by name from the server (functions can't cross the server/client boundary).
+const ICONS: Record<NavIcon, LucideIcon> = {
+  overview: LayoutDashboardIcon,
+  users: UsersIcon,
+  courses: BookOpenIcon,
+  roles: ShieldCheckIcon,
+  home: HouseIcon,
+  dashboard: GraduationCapIcon,
+};
+
+type Props = { items: NavItem[]; groupLabel: string; userName: string; roleLabel: string };
+
+export function AppSidebar({ items, groupLabel, userName, roleLabel }: Props) {
   const pathname = usePathname();
 
   return (
@@ -37,11 +55,12 @@ export function AdminSidebar() {
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Admin</SidebarGroupLabel>
+          <SidebarGroupLabel>{groupLabel}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {ITEMS.map(({ href, label, Icon, exact }) => {
-                const active = exact ? pathname === href : pathname.startsWith(href);
+              {items.map(({ href, label, icon, exact }) => {
+                const Icon = ICONS[icon];
+                const active = exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
                 return (
                   <SidebarMenuItem key={href}>
                     <SidebarMenuButton
@@ -61,6 +80,10 @@ export function AdminSidebar() {
       </SidebarContent>
 
       <SidebarFooter>
+        <div className="grid gap-0.5 px-2 py-1 group-data-[collapsible=icon]:hidden">
+          <span className="truncate text-sm font-medium">{userName}</span>
+          <span className="truncate text-xs text-muted-foreground">{roleLabel}</span>
+        </div>
         <SidebarMenu>
           <SidebarMenuItem>
             <form action={signOut}>

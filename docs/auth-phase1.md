@@ -182,3 +182,27 @@ Users page (`/admin/teachers`). Migration: `supabase/migrations/20261105040000_u
   `SUPABASE_SERVICE_ROLE_KEY` must be set (server-only) in Vercel.
 - Audit: `user_audit_log` (create, edit, deactivate, reactivate, reset_link).
 - Verification: `node scripts/verify/verify-users.cjs` (54 checks).
+
+## 12. Courses and sections
+
+Pages: `/courses`, `/courses/[id]`. Migration: `supabase/migrations/20261105050000_courses_sections.sql`.
+
+- A **course** (for example English) has any number of **sections** (A, B, C, D). Sections are added in bulk
+  ("A, B, C, D" or one per line), renamed and removed at any time. Names are unique within a course, ignoring case.
+  Limits: 50 sections per course, 200 courses per person.
+- **Ownership:** a teacher sees and manages only their own courses. The admin sees and manages all of them and sees the
+  owner. The owner of a course can never be changed. Another person's course looks exactly like a missing one.
+- **Permissions:** the `courses` and `sections` modules in the role matrix gate access (turning off Sections keeps the course
+  but hides its sections). Any role, including custom ones such as Head, gets it by toggling the modules on.
+- **Enforced in the database:** row-level security on both tables requires the role to hold the permission AND the caller
+  to own the course (or be the admin). Deactivated and unapproved users hold no permissions, so they get nothing.
+- Deleting a course is permanent and removes its sections. Archiving is a possible follow-up.
+- Verification: `node scripts/verify/verify-courses.cjs` (57 checks).
+
+## 13. Shared sidebar
+
+Every signed-in user of the app (admin and every approved role) gets the same sidebar from one layout
+(`src/app/(app)/layout.tsx`). Items come from the role's permissions (`src/components/app/sidebar-loader.tsx`), so a new
+module adds one line. The menu is navigation only: pages, actions and the database still enforce access. Pending, rejected
+and deactivated users keep a simple one-card screen.
+Verification: `node scripts/verify/verify-sidebar.cjs` (11 checks).

@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { AuthShell, CardSkeleton } from "@/components/auth/auth-shell";
-import { SignOutButton } from "@/components/auth/sign-out-button";
+import { CardSkeleton } from "@/components/auth/auth-shell";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,18 +11,22 @@ import { createClient } from "@/lib/supabase/server";
 export const metadata: Metadata = { title: "Home | WeCheck" };
 
 // Modules that already have a page. Everything else is shown as "Coming soon".
-const MODULE_LINKS: Record<string, string> = { instructor_dashboard: "/instructor" };
+const MODULE_LINKS: Record<string, string> = {
+  instructor_dashboard: "/instructor",
+  courses: "/courses",
+  sections: "/courses", // sections are managed inside a course
+};
 // System modules are admin-only and never appear here.
 
 type Module = { key: string; label: string; description: string; placeholder: boolean };
 
 export default function HomePage() {
   return (
-    <AuthShell>
+    <div className="mx-auto w-full max-w-2xl">
       <Suspense fallback={<CardSkeleton />}>
         <HomeContent />
       </Suspense>
-    </AuthShell>
+    </div>
   );
 }
 
@@ -75,7 +78,6 @@ async function HomeContent() {
             })}
           </ul>
         )}
-        <SignOutButton />
       </CardContent>
     </Card>
   );

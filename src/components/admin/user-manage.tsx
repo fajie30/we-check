@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createResetLink, setUserActive, updateUser } from "@/app/admin/teachers/user-actions";
+import { createResetLink, setUserActive, updateUser } from "@/app/(app)/admin/teachers/user-actions";
 import { CopyLink } from "./copy-link";
 
 type Props = { id: string; fullName: string; email: string; active: boolean };

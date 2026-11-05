@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { AuthShell, CardSkeleton } from "@/components/auth/auth-shell";
-import { SignOutButton } from "@/components/auth/sign-out-button";
+import { CardSkeleton } from "@/components/auth/auth-shell";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requirePermission } from "@/lib/auth/access";
 
@@ -10,17 +11,17 @@ export const metadata: Metadata = { title: "Instructor | WeCheck" };
 
 export default function InstructorPage() {
   return (
-    <AuthShell>
+    <div className="mx-auto w-full max-w-2xl">
       <Suspense fallback={<CardSkeleton />}>
         <InstructorContent />
       </Suspense>
-    </AuthShell>
+    </div>
   );
 }
 
 async function InstructorContent() {
   // Re-checks on the server: session + verified email + instructor + approved.
-  const { profile } = await requirePermission("instructor_dashboard");
+  const { profile, permissions } = await requirePermission("instructor_dashboard");
   return (
     <Card>
       <CardHeader>
@@ -43,7 +44,11 @@ async function InstructorContent() {
             </dd>
           </div>
         </dl>
-        <SignOutButton />
+        {permissions.includes("courses") ? (
+          <Link href="/courses" className={buttonVariants({ variant: "outline" })}>
+            My courses
+          </Link>
+        ) : null}
       </CardContent>
     </Card>
   );

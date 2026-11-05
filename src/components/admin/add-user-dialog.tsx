@@ -15,7 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
-import { createUser } from "@/app/admin/teachers/user-actions";
+import { createUser } from "@/app/(app)/admin/teachers/user-actions";
 import { CopyLink } from "./copy-link";
 
 export function AddUserDialog({ roles }: { roles: { key: string; label: string }[] }) {
