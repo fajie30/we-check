@@ -1,10 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { EyeIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -98,7 +99,7 @@ export function CourseEditor({ course }: { course: CourseDetail }) {
             ) : (
               <ul className="grid gap-2">
                 {course.sections.map((s) => (
-                  <SectionRow key={s.id} id={s.id} name={s.name} />
+                  <SectionRow key={s.id} id={s.id} name={s.name} courseId={course.id} />
                 ))}
               </ul>
             )}
@@ -163,7 +164,7 @@ export function CourseEditor({ course }: { course: CourseDetail }) {
   );
 }
 
-function SectionRow({ id, name }: { id: string; name: string }) {
+function SectionRow({ id, name, courseId }: { id: string; name: string; courseId: string }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(name);
   const [confirm, setConfirm] = useState(false);
@@ -209,7 +210,14 @@ function SectionRow({ id, name }: { id: string; name: string }) {
       ) : (
         <div className="flex items-center justify-between gap-3">
           <span className="text-sm font-medium">{name}</span>
-          <span className="flex gap-1">
+          <span className="flex items-center gap-1">
+            <Link
+              href={`/courses/${courseId}/sections/${id}`}
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+              aria-label={`View section ${name}`}
+            >
+              <EyeIcon data-icon="inline-start" /> View
+            </Link>
             <Button size="icon-sm" variant="ghost" aria-label={`Rename section ${name}`} onClick={() => { setValue(name); setEditing(true); }}>
               <PencilIcon />
             </Button>
